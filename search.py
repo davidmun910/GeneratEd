@@ -5,8 +5,8 @@ def search_dataframe(df, column, value):
     return df.loc[df[column] == value]
 
 
-def search_course_grade(df, subject, number, sectionInfo):
-    filtered_df = df[(df["Subject"].isin([subject])) & (df["Number"].isin([number]))]
+def search_course_grade(df, subject, subjectTitle, genEdRequirement):
+    filtered_df = df[(df["Course Title"].isin([subjectTitle]))]
     result = 0
     total = 0
     grades = {
@@ -26,35 +26,8 @@ def search_course_grade(df, subject, number, sectionInfo):
     }
 
     for index, row in filtered_df.iterrows():
-        # Extract the section and number from the "Section Info" string
-        course_numbers = []
-        section_titles = []
-
-        # Split the "Section Info" string into words
-        words = sectionInfo.split()
-        removewords = ["Same", "as", "and"]
-
-        # Iterate over words to extract course numbers and section titles
-        if words[0] == "Same" and words[1] == "as":
-            for word in list(words):
-                if word == "Prerequisite:":
-                    break
-
-                word = "".join(letter for letter in word if letter.isalnum())
-                if word in removewords:
-                    words.remove(word)
-                    continue
-
-                if word.isnumeric():
-                    course_numbers.append(word)
-                else:
-                    section_titles.append(word)
-        else:
-            words = []
-
-        # Check if the extracted course number and section title match the desired values
         for grade, score in grades.items():
-            count = row.get(grade, 0)
+            count = row[grade]
             total += count
             result += count * score
 
@@ -62,4 +35,6 @@ def search_course_grade(df, subject, number, sectionInfo):
         return 0
 
     result = result / total
+    print(subjectTitle)
+    print(round(result, 3))
     return round(result, 3)

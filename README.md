@@ -6,9 +6,36 @@
 
 https://github.com/wadefagen/datasets/tree/master
 
-https://raw.githubusercontent.com/wadefagen/datasets/master/geneds/uiuc-geneds.csv
+https://raw.githubusercontent.com/wadefagen/datasets/master/geneds/gened-courses.csv
 
-https://courses.illinois.edu/cisapp/explorer/catalog/DEFAULT/DEFAULT.xml
+ACP - Advanced Composition
+
+HUM - Humanities and the Arts
+HP - Historical and Philosophical Perspectives
+LA - Literature and the Arts
+
+SBS - Social and Behavioral Sciences
+
+BSC - Behavioral Sciences
+SS - Social Sciences
+
+NAT - Natural Sciences and Technology
+
+LS - Life Sciences
+PS - Physical Sciences
+
+CS - Cultural Studies
+
+NW - Non-Western Culture(s)
+US - US Minority Cultures
+WCC - Western/Comparative Culture(s)
+
+QR - Quantitative Reasoning
+
+QR1 - Quantitative Reasoning I
+QR2 - Quantitative Reasoning II
+
+https://raw.githubusercontent.com/wadefagen/datasets/master/teachers-ranked-as-excellent/uiuc-tre-dataset.csv
 
 https://courses.illinois.edu/cisapp/explorer/catalog/DEFAULT/DEFAULT.xml
 
