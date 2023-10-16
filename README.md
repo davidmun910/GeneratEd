@@ -6,6 +6,8 @@
 
 https://github.com/wadefagen/datasets/tree/master
 
+https://raw.githubusercontent.com/wadefagen/datasets/master/course-catalog/data/2023-sp.csv
+
 https://raw.githubusercontent.com/wadefagen/datasets/master/geneds/gened-courses.csv
 
 ACP - Advanced Composition
