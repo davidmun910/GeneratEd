@@ -1,4 +1,5 @@
 import pandas as pd
+from datetime import datetime
 from data_loader import load_data
 from gpa_calculator import calculate_average_gpa
 
@@ -52,37 +53,84 @@ def select_courses_based_on_requirements():
     # Merge the GPA data with the catalog data
     merged_data = catalog_df.merge(relevant_gpa_data, on="Course", how="inner")
 
-    # Filter for lecture or lecture-discussion at a specific time
-    desired_time = input(
-        "Enter the desired time for the course (e.g., 09:00 AM): "
+    # User input for desired time range
+    time_format = "%I:%M %p"  # Time format, e.g., "09:00 AM"
+    start_time_str = input(
+        "Enter the start time for the desired time range (e.g., 09:00 AM): "
     ).strip()
-    lecture_at_desired_time = merged_data[
+    end_time_str = input(
+        "Enter the end time for the desired time range (e.g., 01:00 PM): "
+    ).strip()
+
+    start_time = datetime.strptime(start_time_str, time_format)
+    end_time = datetime.strptime(end_time_str, time_format)
+
+    # New input for the day of the week
+    day_input = (
+        input("Enter the day of the week (e.g., Monday, Tuesday, etc.): ")
+        .strip()
+        .capitalize()
+    )
+    day_map = {
+        "Monday": "M",
+        "Tuesday": "T",
+        "Wednesday": "W",
+        "Thursday": "R",
+        "Friday": "F",
+    }
+    day_of_week = day_map.get(day_input)
+
+    if not day_of_week:
+        print("Invalid day entered!")
+        return
+
+    # Adjusting the lecture filtering criteria
+    lecture_within_time_range = merged_data[
         (merged_data["Type"].isin(["Lecture", "Lecture-Discussion"]))
-        & (merged_data["Start Time"] == desired_time)
+        & (
+            merged_data["Days of Week"].str.contains(day_of_week)
+        )  # Check if the lecture is on the desired day
+        & (
+            merged_data["Start Time"].apply(
+                lambda x: start_time <= datetime.strptime(x, time_format) <= end_time
+                if x != "ARRANGED"
+                else False
+            )
+        )
     ]
 
     # Sorting by Average GPA (highest first)
-    lecture_at_desired_time = lecture_at_desired_time.sort_values(
-        by="Average_GPA", ascending=False
+    lecture_within_time_range = lecture_within_time_range.sort_values(
+        by="Average_GPA", ascending=True
     )
 
-    for _, lecture_row in lecture_at_desired_time.iterrows():
+    for _, lecture_row in lecture_within_time_range.iterrows():
         # Store lecture information
         res = {
             "Course": f"{lecture_row['Subject']} {lecture_row['Number']}",
             "Name": lecture_row["Name"],
-            "LectureTime": lecture_row["Start Time"],
+            "LectureTimeStart": lecture_row["Start Time"],
+            "LectureTimeEnd": lecture_row["End Time"],
             "AverageGPA": round(lecture_row["Average_GPA"], 2),
         }
 
         # Print course info
         print(res["Course"], "-", res["Name"])
-        print(
-            f"Lecture at: {lecture_row['Start Time']} - {lecture_row['End Time']} on {lecture_row['Days of Week']}"
-        )
+        print("Lecture at:", res["LectureTimeStart"], "-", res["LectureTimeEnd"])
         print("Average GPA:", res["AverageGPA"])
 
-        # Find the associated discussion sections
+        # Print Days of the Week for the lecture
+        print("Days of the Week:")
+        for i, c in enumerate(lecture_row["Days of Week"]):
+            if i == len(lecture_row["Days of Week"]) - 1:
+                print(f"{list(day_map.keys())[list(day_map.values()).index(c)]}")
+            else:
+                print(
+                    f"{list(day_map.keys())[list(day_map.values()).index(c)]}, ",
+                    end="",
+                )
+
+        # Adjusting the discussion filtering criteria without day filter
         relevant_discussions = merged_data[
             (merged_data["Subject"] == lecture_row["Subject"])
             & (merged_data["Number"] == lecture_row["Number"])
@@ -93,8 +141,13 @@ def select_courses_based_on_requirements():
         if not relevant_discussions.empty:
             print("Discussion options:")
             for _, dis_row in relevant_discussions.iterrows():
+                day_strs = [
+                    list(day_map.keys())[list(day_map.values()).index(day_char)]
+                    for day_char in dis_row["Days of Week"]
+                ]
+                day_representation = ", ".join(day_strs)
                 print(
-                    f"{dis_row['Start Time']} - {dis_row['End Time']} on {dis_row['Days of Week']}"
+                    f"{dis_row['Start Time']} - {dis_row['End Time']} on {day_representation}"
                 )
         print("========================================")
 

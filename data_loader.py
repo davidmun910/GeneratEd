@@ -6,6 +6,8 @@ def load_data():
     gened_url = "https://raw.githubusercontent.com/wadefagen/datasets/master/geneds/gened-courses.csv"
     gpa_url = "https://raw.githubusercontent.com/wadefagen/datasets/master/gpa/uiuc-gpa-dataset.csv"
     # catalog_url = "https://raw.githubusercontent.com/wadefagen/datasets/master/course-catalog/data/2023-sp.csv"
+
+    # For the Spring 2024 Semester
     catalog_url = "2024-sp.csv"
 
     # Load the datasets
