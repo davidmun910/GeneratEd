@@ -3,17 +3,17 @@ from datetime import datetime
 from data_loader import load_data
 from gpa_calculator import calculate_average_gpa
 
-GENED_BRANCHES = {
-    "ACP": ["ACP"],
-    "HUM": ["HP", "LA"],
-    "SBS": ["BSC", "SS"],
-    "NAT": ["LS", "PS"],
-    "CS": ["NW", "US", "WCC"],
-    "QR": ["QR1", "QR2"],
-}
+
+def to_datetime(time_str, time_format, default):
+    if isinstance(time_str, str) and time_str != "ARRANGED":
+        return datetime.strptime(time_str, time_format)
+    else:
+        return default
 
 
-def select_courses_based_on_requirements():
+def select_courses_based_on_requirements(
+    gen_ed_requirements, start_time_str, end_time_str, day_input
+):
     gened_df, gpa_df, catalog_df = load_data()
     average_gpa_df = calculate_average_gpa(gpa_df)
 
@@ -21,56 +21,57 @@ def select_courses_based_on_requirements():
         catalog_df["Subject"] + " " + catalog_df["Number"].astype(str)
     )
 
-    # User input for GenEd requirement
-    gen_ed_requirement = input(
-        "Enter the GenEd requirement (e.g., US, HP, LA, BSC, SS, LS, PS, NW, WCC): "
-    ).strip()
+    # Split the gen_ed_requirements into a list
+    gen_ed_list = gen_ed_requirements.split(",")
 
-    # Determine the branch for the provided GenEd requirement
-    branch_columns = []
-    for branch, requirements in GENED_BRANCHES.items():
-        if gen_ed_requirement in requirements:
-            branch_columns.append(branch)
-            break
+    # Reverse mapping: GenEd requirement to DataFrame column
+    reversed_gened_branches = {
+        "ACP": "ACP",
+        "HP": "HUM",
+        "LA": "HUM",
+        "BSC": "SBS",
+        "SS": "SBS",
+        "LS": "NAT",
+        "PS": "NAT",
+        "NW": "CS",
+        "US": "CS",
+        "WCC": "CS",
+        "QR1": "QR",
+        "QR2": "QR",
+    }
 
     gened_courses = gened_df[
         gened_df.apply(
-            lambda row: any(row[col] for col in branch_columns)
-            and gen_ed_requirement in row.values,
+            lambda row: all(
+                row[reversed_gened_branches[gen_ed]] == gen_ed for gen_ed in gen_ed_list
+            ),
             axis=1,
         )
     ]
 
-    # Extract the 'Course' column to a list
+    # Map each course to its GenEd requirements
+    course_gened_mapping = {
+        row["Course"]: [
+            gen_ed
+            for gen_ed in gen_ed_list
+            if row[reversed_gened_branches[gen_ed]] == gen_ed
+        ]
+        for _, row in gened_courses.iterrows()
+    }
+
     gened_courses_list = gened_courses["Course"].tolist()
 
-    # Filter GPA data to only courses that are in the gened_courses_list
     relevant_gpa_data = average_gpa_df[
         average_gpa_df["CourseKey"].isin(gened_courses_list)
     ]
     relevant_gpa_data = relevant_gpa_data.rename(columns={"CourseKey": "Course"})
 
-    # Merge the GPA data with the catalog data
     merged_data = catalog_df.merge(relevant_gpa_data, on="Course", how="inner")
 
-    # User input for desired time range
-    time_format = "%I:%M %p"  # Time format, e.g., "09:00 AM"
-    start_time_str = input(
-        "Enter the start time for the desired time range (e.g., 09:00 AM): "
-    ).strip()
-    end_time_str = input(
-        "Enter the end time for the desired time range (e.g., 01:00 PM): "
-    ).strip()
-
+    time_format = "%I:%M %p"
     start_time = datetime.strptime(start_time_str, time_format)
     end_time = datetime.strptime(end_time_str, time_format)
 
-    # New input for the day of the week
-    day_input = (
-        input("Enter the day of the week (e.g., Monday, Tuesday, etc.): ")
-        .strip()
-        .capitalize()
-    )
     day_map = {
         "Monday": "M",
         "Tuesday": "T",
@@ -78,59 +79,38 @@ def select_courses_based_on_requirements():
         "Thursday": "R",
         "Friday": "F",
     }
-    day_of_week = day_map.get(day_input)
+    day_of_week = day_map.get(day_input.capitalize())
 
     if not day_of_week:
         print("Invalid day entered!")
-        return
+        return []
 
-    # Adjusting the lecture filtering criteria
-    lecture_within_time_range = merged_data[
-        (merged_data["Type"].isin(["Lecture", "Lecture-Discussion"]))
-        & (
-            merged_data["Days of Week"].str.contains(day_of_week)
-        )  # Check if the lecture is on the desired day
-        & (
-            merged_data["Start Time"].apply(
-                lambda x: start_time <= datetime.strptime(x, time_format) <= end_time
-                if x != "ARRANGED"
-                else False
-            )
-        )
-    ]
-
-    # Sorting by Average GPA (highest first)
-    lecture_within_time_range = lecture_within_time_range.sort_values(
-        by="Average_GPA", ascending=True
+    # Apply filters for time and day
+    merged_data["Start Time Datetime"] = merged_data["Start Time"].apply(
+        lambda x: to_datetime(x, time_format, None)
+    )
+    merged_data["End Time Datetime"] = merged_data["End Time"].apply(
+        lambda x: to_datetime(x, time_format, end_time)
     )
 
-    for _, lecture_row in lecture_within_time_range.iterrows():
-        # Store lecture information
-        res = {
-            "Course": f"{lecture_row['Subject']} {lecture_row['Number']}",
-            "Name": lecture_row["Name"],
-            "LectureTimeStart": lecture_row["Start Time"],
-            "LectureTimeEnd": lecture_row["End Time"],
-            "AverageGPA": round(lecture_row["Average_GPA"], 2),
-        }
+    filtered_data = merged_data[
+        (merged_data["Type"].isin(["Lecture", "Lecture-Discussion"]))
+        & merged_data["Days of Week"].str.contains(day_of_week)
+        & merged_data["Start Time Datetime"].apply(
+            lambda x: x is not None and start_time <= x
+        )
+        & (merged_data["End Time Datetime"] <= end_time)
+    ]
 
-        # Print course info
-        print(res["Course"], "-", res["Name"])
-        print("Lecture at:", res["LectureTimeStart"], "-", res["LectureTimeEnd"])
-        print("Average GPA:", res["AverageGPA"])
+    filtered_data = filtered_data.sort_values(by="Average_GPA", ascending=False)
 
-        # Print Days of the Week for the lecture
-        print("Days of the Week:")
-        for i, c in enumerate(lecture_row["Days of Week"]):
-            if i == len(lecture_row["Days of Week"]) - 1:
-                print(f"{list(day_map.keys())[list(day_map.values()).index(c)]}")
-            else:
-                print(
-                    f"{list(day_map.keys())[list(day_map.values()).index(c)]}, ",
-                    end="",
-                )
+    results = []
+    for _, lecture_row in filtered_data.iterrows():
+        days_of_week = [
+            day for day in day_map.keys() if day_map[day] in lecture_row["Days of Week"]
+        ]
+        discussions = []
 
-        # Adjusting the discussion filtering criteria without day filter
         relevant_discussions = merged_data[
             (merged_data["Subject"] == lecture_row["Subject"])
             & (merged_data["Number"] == lecture_row["Number"])
@@ -139,18 +119,32 @@ def select_courses_based_on_requirements():
         ]
 
         if not relevant_discussions.empty:
-            print("Discussion options:")
             for _, dis_row in relevant_discussions.iterrows():
-                day_strs = [
-                    list(day_map.keys())[list(day_map.values()).index(day_char)]
-                    for day_char in dis_row["Days of Week"]
+                discussion_time = f"{dis_row['Start Time']} - {dis_row['End Time']}"
+                discussion_days = [
+                    day
+                    for day in day_map.keys()
+                    if day_map[day] in dis_row["Days of Week"]
                 ]
-                day_representation = ", ".join(day_strs)
-                print(
-                    f"{dis_row['Start Time']} - {dis_row['End Time']} on {day_representation}"
+                discussions.append(
+                    {
+                        "DiscussionTime": discussion_time,
+                        "DiscussionDays": ", ".join(discussion_days),
+                    }
                 )
-        print("========================================")
 
+        course_key = f"{lecture_row['Subject']} {lecture_row['Number']}"
+        course_geneds = course_gened_mapping.get(course_key, [])
 
-if __name__ == "__main__":
-    select_courses_based_on_requirements()
+        course_info = {
+            "Course": course_key,
+            "Name": lecture_row["Name"],
+            "LectureTime": f"{lecture_row['Start Time']} - {lecture_row['End Time']}",
+            "LectureDays": ", ".join(days_of_week),
+            "AverageGPA": round(lecture_row["Average_GPA"], 2),
+            "Discussions": discussions,
+            "GenEdRequirements": course_geneds,  # Add GenEd requirements here
+        }
+        results.append(course_info)
+
+    return results
