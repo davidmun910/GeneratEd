@@ -8,7 +8,7 @@ def load_data():
     # catalog_url = "https://raw.githubusercontent.com/wadefagen/datasets/master/course-catalog/data/2023-sp.csv"
 
     # For the Spring 2024 Semester
-    catalog_url = "2024-sp.csv"
+    catalog_url = "./static/2024-sp.csv"
 
     # Load the datasets
     gened_df = pd.read_csv(gened_url)
